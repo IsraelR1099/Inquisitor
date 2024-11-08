@@ -21,9 +21,9 @@ typedef struct arphdr
 
 int main(void)
 {
-  int                 i;
-  bpf_u_int32         netaddr;
-  bpf_u_int32         mask;
+  int                   i;
+  bpf_u_int32           netaddr;
+  bpf_u_int32           mask;
   struct bpf_program  filter;
   char                errbuf[PCAP_ERRBUF_SIZE];
   pcap_t              *descr;
