@@ -1,16 +1,4 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <pcap.h>
-#include <signal.h>
-#include <netinet/tcp.h>
-#include <netinet/udp.h>
-#include <netinet/ip_icmp.h>
-
-pcap_t  *handle;
-int     linkhdrlen;
-int     packets;
+#include "inquisitor.h"
 
 static void    stop_process(int signo)
 {
@@ -99,18 +87,56 @@ static void    get_link_hdr_len(pcap_t *handle)
     }
 }
 
+static void start_arp_sniffer(const struct pcap_pkthdr *packethdr, const u_char *packetptr)
+{
+    arphdr_t    *arpheader;
+    int         i;
+
+    arpheader = (struct arphdr_s *)(packetptr + linkhdrlen);
+    printf("\n\nReceived Packet size: %d bytes\n", packethdr->len);
+    printf("Hardware type: %s\n", (ntohs(arpheader->htype) == 1) ? "Ethernet" : "Unknown");
+    printf("Protocol type: %s\n", (ntohs(arpheader->ptype) == 0x800) ? "IPv4" : "Unknown");
+    printf("Operation: %s\n", (ntohs(arpheader->oper) == ARP_REQUEST) ? "ARP Request" : "ARP Reply");
+    if (ntohs(arpheader->htype) == 1 &&
+        ntohs(arpheader->ptype) == 0x800)
+    {
+        printf("Sender MAC:");
+        for (i = 0; i < 6; i++)
+            printf("%02X:", arpheader->sha[i]);
+        printf("Sender IP:");
+        for (i = 0; i < 4; i++)
+            printf("%d.", arpheader->spa[i]);
+        printf("\nTarget MAC:");
+        for (i = 0; i < 6; i++)
+            printf("%02X:", arpheader->tha[i]);
+        printf("\nTarget IP:");
+        for (i = 0; i < 4; i++)
+            printf("%d.", arpheader->tpa[i]);
+        printf("\n");
+    }
+}
+
 static void callback(u_char *user, const struct pcap_pkthdr *packethdr, const u_char *packetptr)
 {
-    struct ip       *iphdr;
-    struct icmp     *icmphdr;
-    struct tcphdr   *tcphdr;
-    struct udphdr   *udphdr;
-    char            iphdr_info[256] = {0};
-    char            src_ip[256] = {0};
-    char            dst_ip[256] = {0};
+    struct ip           *iphdr;
+    struct icmp         *icmphdr;
+    struct tcphdr       *tcphdr;
+    struct udphdr       *udphdr;
+    struct ether_header *ethhdr;
+    char                iphdr_info[256] = {0};
+    char                src_ip[256] = {0};
+    char                dst_ip[256] = {0};
 
-    packethdr += linkhdrlen;
-    iphdr = (struct ip *)packetptr;
+    ethhdr = (struct ether_header *)packetptr;
+    if (ntohs(ethhdr->ether_type) == ETHERTYPE_ARP)
+    {
+        start_arp_sniffer(packethdr, packetptr);
+        packets++;
+        printf("+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\n\n");
+        return ;
+
+    }
+    iphdr = (struct ip *)(packetptr + linkhdrlen);
     strcpy(src_ip, inet_ntoa(iphdr->ip_src));
     strcpy(dst_ip, inet_ntoa(iphdr->ip_dst));
     sprintf(iphdr_info, "ID:%d TOS:0x%x, TTL:%d IpLen:%d DgLen:%d",
@@ -160,6 +186,7 @@ static void callback(u_char *user, const struct pcap_pkthdr *packethdr, const u_
             printf("Unknown ");
     }
     (void)user;
+    (void)packethdr;
 }
 
 int main(int argc, char *argv[])
