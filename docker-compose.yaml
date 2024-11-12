@@ -1,0 +1,25 @@
+services:
+  first-container:
+    image: arp
+    depends_on:
+      - second-container
+    networks:
+      - arp
+  second-container:
+    image: arp
+    depends_on:
+      - third-container
+    networks:
+      - arp
+  third-container:
+    image: arp
+    restart: always
+    networks:
+        - arp
+
+networks:
+    arp:
+      ipam:
+        driver: default
+        config:
+          - subnet: "172.168.238.0/24"
