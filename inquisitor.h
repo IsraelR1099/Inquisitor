@@ -15,6 +15,8 @@
 
 # define ARP_REQUEST 1
 # define ARP_REPLY 2
+# define POISON_DURATION 300
+# define POISON_INTERVAL 5
 
 pcap_t  *handle;
 int     linkhdrlen;

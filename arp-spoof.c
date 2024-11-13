@@ -118,7 +118,9 @@ static void	check_and_start(pcap_t *handle, char *ip_src, char *mac_src, char *i
     u_char  target_ip[4];
     u_char  source_mac[MAC_ADDR_LEN];
     u_char  target_mac[MAC_ADDR_LEN];
+	int		elapsed_time;
 
+	elapsed_time = 0;
     if (!inet_pton(AF_INET, ip_src, source_ip))
     {
         fprintf(stderr, "Invalid IP address format for source ip: %s\n", ip_src);
@@ -143,10 +145,11 @@ static void	check_and_start(pcap_t *handle, char *ip_src, char *mac_src, char *i
         fprintf(stderr, "Invalid MAC address format for target MAC: %s\n", mac_target);
         exit (1);
     }
-    while (1)
+    while (elapsed_time < POISON_DURATION)
     {
         send_arp_poison(handle, source_ip, target_ip, source_mac, target_mac, verbose);
-        sleep(2);
+        sleep(POISON_INTERVAL);
+		elapsed_time += POISON_INTERVAL;
     }
 }
 
