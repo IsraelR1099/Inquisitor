@@ -89,13 +89,56 @@ static void get_link_addr(pcap_t *handle)
 	}
 }
 
-static void	check_info(char *ip_src, char *mac_src, char *ip_target, char *mac_target)
+static void send_arp_poison(pcap_t *handle, uchar *source_ip, u_char *target_ip, u_char *source_mac, u_char *target_mac, bool verbose)
 {
-	if (!inet_pton(AF_INET, ip_src, &src_ip))
-	{
-		fprintf(stderr, "Error: Invalid source IP address\n");
-		exit(1);
-	
+    u_char      packet[42];
+    arphdr_t    *arpheader;  
+
+    memset(packet, 0, sizeof(packet));
+    memcpy(packet, target_mac, MAC_ADDR_LEN);
+    memcpy(packet + 6, source_mac, MAC_ADDR_LEN);
+    packet[12] = 0x08;
+    packet[13] = 0x06;
+    arpheader = (arphdr_t *)(packet + 14);
+
+}
+
+static void	check_and_start(pcap_t *handle, char *ip_src, char *mac_src, char *ip_target, char *mac_target, bool verbose)
+{
+    u_char  source_ip[4];
+    u_char  target_ip[4];
+    u_char  source_mac[MAC_ADDR_LEN];
+    u_char  target_mac[MAC_ADDR_LEN];
+
+    if (!inet_pton(AF_INET, ip_src, source_ip))
+    {
+        fprintf(stderr, "Invalid IP address format for source ip: %s\n", ip_src);
+        exit (1);
+    }
+    if (!inet_pton(AF_INET, ip_target, target_ip))
+    {
+        fprintf(stderr, "Invalid IP address format for target ip: %s\n", ip_target);
+        exit (1);
+    }
+    if (sscanf(mac_src, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+                source_mac[0], source_mac[1], source_mac[2],
+                source_mac[4], source_mac[5]) != 6)
+    {
+        fprintf(stderr, "Invalid MAC address format for source MAC: %s\n", mac_src);
+        exit (1);
+    }
+    if (sscanf(mac_target, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+                target_mac[0], target_mac[1], target_mac[2],
+                target_mac[4], target_mac[5]) != 6)
+    {
+        fprintf(stderr, "Invalid MAC address format for target MAC: %s\n", mac_target);
+        exit (1);
+    }
+    while (1)
+    {
+        send_arp_poison(handle, source_ip, target_ip, source_mac, target_mac, verbose);
+        sleep(2);
+    }
 }
 
 int	main(int argc, char **argv)
@@ -142,7 +185,6 @@ int	main(int argc, char **argv)
 	mac_src = argv[optind + 1];
 	ip_target = argv[optind + 2];
 	mac_target = argv[optind + 3];
-	check_info(ip_src, mac_src, ip_target, mac_target);
 	signal(SIGINT, signal_handler);
 	handle = create_pcap_handle(dev, errbuf);
 	if (handle == NULL)
@@ -157,9 +199,6 @@ int	main(int argc, char **argv)
 		fprintf(stderr, "Error: Could not determine link-layer header length\n");
 		exit(1);
 	}
-	while (1)
-	{
-		send_arp_poison(handle);
-	}
+	check_and_start(handle, ip_src, mac_src, ip_target, mac_target, verbose);
 	return (0);
 }
