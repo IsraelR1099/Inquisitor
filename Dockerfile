@@ -11,6 +11,11 @@ RUN apt-get update && apt-get install -y \
     sudo \
     vim \
     tcpdump \
+	git \
+	gcc \
+	make \
+	ftp \
+	libpcap-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m -s /bin/bash arp-user && \
@@ -18,6 +23,8 @@ RUN useradd -m -s /bin/bash arp-user && \
     adduser arp-user sudo
 
 COPY script.sh /home/arp-user
+COPY arp-spoof.c /home/arp-user
+COPY inquisitor.h /home/arp-user
 
 RUN mkdir /var/run/sshd
 RUN echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config
