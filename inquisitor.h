@@ -57,5 +57,6 @@ void	sigint_handler(int signum);
 
 // Setting headers
 void	set_hdrs(struct ether_header *eth, struct ether_arp *arp, u_char *source_mac, char *ip_target);
+void	spoof_gateway(struct ether_header *eth, struct ether_arp *arp, u_char *source_mac, char *ip_target);
 
 #endif

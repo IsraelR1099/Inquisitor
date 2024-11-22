@@ -6,7 +6,7 @@
 /*   By: irifarac <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/22 12:06:53 by irifarac          #+#    #+#             */
-/*   Updated: 2024/11/22 12:15:05 by irifarac         ###   ########.fr       */
+/*   Updated: 2024/11/22 13:35:51 by irifarac         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -39,4 +39,25 @@ void	set_hdrs(struct ether_header *eth, struct ether_arp *arp, u_char *source_ma
 		perror("inet_pton() error");
 		exit (1);
 	}
+}
+
+void	spoof_gateway(struct ether_header *eth, struct ether_arp *arp, u_char *source_mac, char *ip_target)
+{
+	char	gateway_ip[16] = {0};
+
+	get_gateway(gateway_ip);
+	memset(arp->arp_sha, 0, ETH_ALEN);
+	memcpy(arp->arp_sha, source_mac, ETH_ALEN);
+	if (inet_pton(AF_INET, ip_target, arp->arp_spa) <= 0)
+	{
+		perror("inet_pton() error");
+		exit (1);
+	}
+	memset(arp->arp_tha, 0, ETH_ALEN);
+	if (inet_pton(AF_INET, gateway_ip, arp->arp_tpa) <= 0)
+	{
+		perror("inet_pton() error");
+		exit (1);
+	}
+	(void)eth;
 }
