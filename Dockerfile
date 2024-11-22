@@ -23,7 +23,7 @@ RUN useradd -m -s /bin/bash arp-user && \
     adduser arp-user sudo
 
 COPY script.sh /home/arp-user
-COPY arp-spoof.c /home/arp-user
+COPY arp.c utils.c signals.c /home/arp-user
 COPY inquisitor.h /home/arp-user
 
 RUN mkdir /var/run/sshd

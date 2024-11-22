@@ -9,7 +9,7 @@
 # include <signal.h>
 # include <netinet/if_ether.h>
 # include <sys/socket.h>
-# include <netpacket/packet.h>
+# include <netpacket/packet.h> 
 # include <net/ethernet.h>
 # include <net/if.h>
 # include <netinet/ip.h>
@@ -25,10 +25,14 @@
 # define POISON_INTERVAL 2
 # define MAC_ADDR_LEN 6
 # define IP_ADDR_LEN 4
+# define IP4LEN 4
+# define PKTLEN sizeof(struct ether_header) + sizeof(struct ether_arp)
 
-pcap_t  *handle;
-int     linkhdrlen;
-int     packets;
+//pcap_t	*handle;
+//int		linkhdrlen;
+//int		packets;
+extern bool	verbose;
+extern int		sock;
 
 typedef struct arphdr_s
 {
@@ -42,5 +46,16 @@ typedef struct arphdr_s
     u_char      tha[6]; //Target hardware address
     u_char      tpa[4]; //Target IP address
 }   arphdr_t;
+
+// Utils
+void	usage(void);
+void	get_gateway(char *gateway_ip);
+void	check_errors(int argc);
+
+// Signals
+void	sigint_handler(int signum);
+
+// Setting headers
+void	set_hdrs(struct ether_header *eth, struct ether_arp *arp, u_char *source_mac, char *ip_target);
 
 #endif

