@@ -9,7 +9,7 @@
 # include <signal.h>
 # include <netinet/if_ether.h>
 # include <sys/socket.h>
-# include <netpacket/packet.h> 
+# include <netpacket/packet.h>
 # include <net/ethernet.h>
 # include <net/if.h>
 # include <netinet/ip.h>
@@ -46,6 +46,16 @@ typedef struct arphdr_s
     u_char      tha[6]; //Target hardware address
     u_char      tpa[4]; //Target IP address
 }   arphdr_t;
+
+typedef struct	s_info
+{
+	const char	*dev;
+	char		*ip_src;
+	char		*ip_target;
+	char		*mac_src;
+	char		*mac_target;
+	char		*gateway_ip;
+}				t_info;
 
 // Utils
 void	usage(void);

