@@ -1,6 +1,8 @@
 FROM ubuntu:latest
 
-ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive \
+	FTP_USER=foo \
+	FTP_PASS=bar
 
 RUN apt-get update && apt-get install -y \
     openssh-server \
@@ -26,22 +28,16 @@ COPY script.sh /home/arp-user
 COPY arp.c utils.c signals.c set_headers.c sniffer_ftp.c Makefile /home/arp-user
 COPY inquisitor.h /home/arp-user
 
+COPY [ "/src/vsftpd.conf", "/etc" ]
+COPY [ "/src/docker_entrypoint.sh", "/" ]
+RUN chmod +x /docker_entrypoint.sh
+
 RUN mkdir /var/run/sshd
 RUN echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config
 RUN echo 'PasswordAuthentication yes' >> /etc/ssh/sshd_config
 RUN echo 'arp-user ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
-RUN echo 'listen=YES' >> /etc/vsftpd.conf && \
-    echo 'anonymous_enable=NO' >> /etc/vsftpd.conf && \
-    echo 'local_enable=YES' >> /etc/vsftpd.conf && \
-    echo 'write_enable=YES' >> /etc/vsftpd.conf && \
-    echo 'local_umask=022' >> /etc/vsftpd.conf && \
-    echo 'chroot_local_user=YES' >> /etc/vsftpd.conf && \
-    echo 'allow_writeable_chroot=YES' >> /etc/vsftpd.conf && \
-    echo 'pasv_min_port=40000' >> /etc/vsftpd.conf && \
-    echo 'pasv_max_port=40005' >> /etc/vsftpd.conf && \
-    echo 'pasv_address=127.0.0.1' >> /etc/vsftpd.conf
 
-EXPOSE 22 21
+EXPOSE 20/tcp 21/tcp 40000-40009/tcp
 
-CMD ["bash", "-c", "service ssh start && tail -f /dev/null"]
+ENTRYPOINT [ "/docker_entrypoint.sh" ]
