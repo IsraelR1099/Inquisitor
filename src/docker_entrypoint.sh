@@ -2,12 +2,14 @@
 
 if ! getent group $FTP_USER > /dev/null 2>&1; then
 	groupadd $FTP_USER
+	echo "Group $FTP_USER created."
 else
 	echo "Group $FTP_USER already exists."
 fi
 
 if ! id -u $FTP_USER > /dev/null 2>&1; then
 	useradd --home /home/$FTP_USER --shell /bin/false --gid $FTP_USER $FTP_USER
+	echo "User $FTP_USER created."
 else
 	echo "User $FTP_USER already exists."
 fi
@@ -40,4 +42,5 @@ tail -f /var/log/vsftpd.log | tee /dev/stdout &
 tail -f /var/log/xferlog | tee /dev/stdout &
 
 # Start vsftpd
+echo "Starting vsftpd..."
 exec /usr/sbin/vsftpd

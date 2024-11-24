@@ -57,6 +57,7 @@ typedef struct	s_info
 	char		*mac_src;
 	char		*mac_target;
 	char		*gateway_ip;
+	pcap_t		*handle;
 }				t_info;
 
 // Utils

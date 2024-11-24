@@ -3,10 +3,11 @@
 void	sigint_handler(int signum)
 {
 	(void)signum;
-	if (sock >= 0)
-		close(sock);
-	stop = 1;
 	printf("SIGINT received, exiting...\n");
-	printf("\n");
-	exit(0);
+	if (sock >= 0)
+	{
+		printf("Closing socket...\n");
+		close(sock);
+		sock = -1;
+	}
 }
