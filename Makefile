@@ -1,9 +1,9 @@
 # Variables
 
 CC := gcc
-CFLAGS := -Wall -Wextra -Werror -pedantic -g
-LDFLAGS := -lpcap
-SRCS := arp.c utils.c signals.c set_headers.c
+CFLAGS := -Wall -Wextra -Werror -pedantic -lpthread -g
+LDFLAGS := -lpcap -lpthread
+SRCS := arp.c utils.c signals.c set_headers.c sniffer_ftp.c
 OBJS := $(SRCS:.c=.o)
 DEPS := inquisitor.h
 TARGET := inquisitor

@@ -18,6 +18,7 @@
 # include <netinet/ip_icmp.h>
 # include <stdbool.h>
 # include <errno.h>
+# include <pthread.h>
 
 # define ARP_REQUEST 1
 # define ARP_REPLY 2
@@ -31,8 +32,9 @@
 //pcap_t	*handle;
 //int		linkhdrlen;
 //int		packets;
-extern bool	verbose;
-extern int		sock;
+extern bool						verbose;
+extern int						sock;
+extern volatile sig_atomic_t	stop;
 
 typedef struct arphdr_s
 {
@@ -68,5 +70,6 @@ void	sigint_handler(int signum);
 // Setting headers
 void	set_hdrs(struct ether_header *eth, struct ether_arp *arp, u_char *source_mac, char *ip_target);
 void	spoof_gateway(struct ether_header *eth, struct ether_arp *arp, u_char *source_mac, char *ip_target);
+void	*sniff_ftp(void *arg);
 
 #endif

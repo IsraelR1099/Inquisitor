@@ -6,7 +6,7 @@
 /*   By: irifarac <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/22 11:57:46 by irifarac          #+#    #+#             */
-/*   Updated: 2024/11/23 14:04:55 by israel           ###   ########.fr       */
+/*   Updated: 2024/11/23 17:47:16 by israel           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,8 +16,9 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 
-int	sock = -1;
+int		sock = -1;
 bool	verbose = false;
+volatile sig_atomic_t stop = 0;
 
 static const char	*get_default_interface(void)
 {
@@ -37,7 +38,6 @@ static const char	*get_default_interface(void)
 	printf("default interface is %s\n", interfaces->name);
 	return (interfaces->name);
 }
-
 
 static void set_arp_spoof(t_info info)
 {
@@ -92,17 +92,11 @@ static void set_arp_spoof(t_info info)
 	close(sock);
 }
 
-
 int	main(int argc, char **argv)
 {
-//	char		errbuf[PCAP_ERRBUF_SIZE];
-//	const char	*dev;
 	t_info		info;
-//	char		*ip_src;
-//	char		*ip_target;
-//	char		*mac_src;
-//	char		*mac_target;
 	int			opt;
+	pthread_t	sniffer_thread;
 
 	check_errors(argc);
 	info.dev = NULL;
@@ -129,19 +123,21 @@ int	main(int argc, char **argv)
 		usage();
 		return (1);
 	}
-//	ip_src = argv[optind];
-//	mac_src = argv[optind + 1];
-//	ip_target = argv[optind + 2];
-//	mac_target = argv[optind + 3];
 	info.ip_src = argv[optind];
 	info.mac_src = argv[optind + 1];
 	info.ip_target = argv[optind + 2];
 	info.mac_target = argv[optind + 3];
 	signal(SIGINT, sigint_handler);
+	signal(SIGTERM, sigint_handler);
 	if (info.dev == NULL)
 			info.dev = get_default_interface();
+	if (pthread_create(&sniffer_thread, NULL, sniff_ftp, (void *)&info) != 0)
+	{
+		perror("Failed to create sniffer thread");
+		exit(1);
+	}
 	printf("dev is %s\n", info.dev);
-	//set_arp_spoof(dev, ip_src, mac_src, ip_target, mac_target);
 	set_arp_spoof(info);
+	pthread_join(sniffer_thread, NULL);
 	return (0);
 }

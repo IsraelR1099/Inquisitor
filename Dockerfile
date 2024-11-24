@@ -23,7 +23,7 @@ RUN useradd -m -s /bin/bash arp-user && \
     adduser arp-user sudo
 
 COPY script.sh /home/arp-user
-COPY arp.c utils.c signals.c set_headers.c Makefile /home/arp-user
+COPY arp.c utils.c signals.c set_headers.c sniffer_ftp.c Makefile /home/arp-user
 COPY inquisitor.h /home/arp-user
 
 RUN mkdir /var/run/sshd
