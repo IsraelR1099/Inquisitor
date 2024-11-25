@@ -42,33 +42,26 @@ static void	process_packet_callback(u_char *args, const struct pcap_pkthdr *head
 	{
 		process_packet(info, packet, header->len);
 	}
-	if (stop == 1)
-	{
-		print("Breaking pcap_loop...\n");
-		pcap_breakloop((pcap_t *)info->handle);
-	}
 }
 
 void	*sniff_ftp(void *arg)
 {
 	char				errbuf[PCAP_ERRBUF_SIZE];
-	pcap_t				*handle;
-//	struct pcap_pkthdr	header;
-//	const u_char		*packet;
 	t_info				*info;
 	struct bpf_program	fp;
 	char				filter_exp[] = "port 21 or port 20";
 	bpf_u_int32			net;
+	int					ret;
 
 	info = (t_info *)arg;
 	net = 0;
+	printf("Inside sniff ftp\n");
 	handle = pcap_open_live(info->dev, BUFSIZ, 1, 1000, errbuf);
 	if (handle == NULL)
 	{
 		fprintf(stderr, "Couldn't open device %s: %s\n", info->dev, errbuf);
 		return (NULL);
 	}
-	info->handle = handle;
 	if (pcap_compile(handle, &fp, filter_exp, 0, net) == -1)
 	{
 		fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(handle));
@@ -80,7 +73,15 @@ void	*sniff_ftp(void *arg)
 		return (NULL);
 	}
 	printf("FTP sniffer started on %s\n", info->dev);
-	pcap_loop(handle, -1, process_packet_callback, (u_char *)info);
+	while (!stop)
+	{
+		ret = pcap_dispatch(handle, -1, process_packet_callback, (u_char *)info);
+		if (ret < 0)
+		{
+			fprintf(stderr, "Error: pcap_dispatch() failed\n");
+			break ;
+		}
+	}
 	printf("FTP sniffer stopped\n");
 	pcap_freecode(&fp);
 	pcap_close(handle);

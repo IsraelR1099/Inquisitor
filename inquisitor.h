@@ -29,12 +29,12 @@
 # define IP4LEN 4
 # define PKTLEN sizeof(struct ether_header) + sizeof(struct ether_arp)
 
-//pcap_t	*handle;
 //int		linkhdrlen;
 //int		packets;
 extern bool						verbose;
 extern int						sock;
 extern volatile sig_atomic_t	stop;
+extern pcap_t					*handle;
 
 typedef struct arphdr_s
 {

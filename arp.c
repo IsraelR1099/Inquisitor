@@ -6,7 +6,7 @@
 /*   By: irifarac <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/22 11:57:46 by irifarac          #+#    #+#             */
-/*   Updated: 2024/11/24 23:00:10 by israel           ###   ########.fr       */
+/*   Updated: 2024/11/25 11:39:04 by irifarac         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,9 +16,10 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 
-int		sock = -1;
-bool	verbose = false;
-volatile sig_atomic_t stop = 0;
+int						sock = -1;
+bool					verbose = false;
+volatile sig_atomic_t	stop = 0;
+pcap_t					*handle = NULL;
 
 static const char	*get_default_interface(void)
 {
@@ -152,7 +153,7 @@ int	main(int argc, char **argv)
 	}
 	printf("dev is %s\n", info.dev);
 	set_arp_spoof(info);
-	stop = 1;
 	pthread_join(sniffer_thread, NULL);
+	printf("Finished ARP attack");
 	return (0);
 }
