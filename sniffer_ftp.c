@@ -30,18 +30,17 @@ static void	process_packet(t_info *info, const u_char *packet, int len)
 
 static void	process_packet_callback(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 {
-	t_info	*info;
+	t_info			*info;
+	struct ethhdr	*eth;
+	struct iphdr	*ip;
+	struct tcphdr	*tcp;
 
+	printf("Packet captured, length: %d bytes\n", header->len);
 	info = (t_info *)args;
-	printf("Packet captured\n");
-	if (info->handle == NULL)
-	{
-		printf("Handle is NULL\n");
-	}
-	if (header->len > 0)
-	{
-		process_packet(info, packet, header->len);
-	}
+	eth = (struct ethhdr *)packet;
+	printf("Ethernet: Source MAC: %02x:%02x:%02x:%02x:%02x:%02x | Destination MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
+			eth->h_source[0], eth->h_source[1], eth->h_source[2],
+			eth->h_source[3], eth->h_source[4], eth->h_source[5]);
 }
 
 void	*sniff_ftp(void *arg)
