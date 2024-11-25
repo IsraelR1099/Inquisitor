@@ -19,6 +19,7 @@
 # include <stdbool.h>
 # include <errno.h>
 # include <pthread.h>
+# include <ctype.h>
 
 # define ARP_REQUEST 1
 # define ARP_REPLY 2
