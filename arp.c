@@ -6,7 +6,7 @@
 /*   By: irifarac <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/22 11:57:46 by irifarac          #+#    #+#             */
-/*   Updated: 2024/11/25 11:39:04 by irifarac         ###   ########.fr       */
+/*   Updated: 2024/11/25 21:28:15 by israel           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,10 +21,11 @@ bool					verbose = false;
 volatile sig_atomic_t	stop = 0;
 pcap_t					*handle = NULL;
 
-static const char	*get_default_interface(void)
+static char	*get_default_interface(void)
 {
-	char	errbuf[PCAP_ERRBUF_SIZE];
+	char		errbuf[PCAP_ERRBUF_SIZE];
 	pcap_if_t	*interfaces;
+	char		*dev;
 
 	if (pcap_findalldevs(&interfaces, errbuf) < 0)
 	{
@@ -37,7 +38,9 @@ static const char	*get_default_interface(void)
 		return (NULL);
 	}
 	printf("default interface is %s\n", interfaces->name);
-	return (interfaces->name);
+	dev = strdup(interfaces->name);
+	pcap_freealldevs(interfaces);
+	return (dev);
 }
 
 static void set_arp_spoof(t_info info)
@@ -154,6 +157,7 @@ int	main(int argc, char **argv)
 	printf("dev is %s\n", info.dev);
 	set_arp_spoof(info);
 	pthread_join(sniffer_thread, NULL);
+	free(info.dev);
 	printf("Finished ARP attack");
 	return (0);
 }

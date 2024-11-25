@@ -43,4 +43,5 @@ tail -f /var/log/xferlog | tee /dev/stdout &
 
 # Start vsftpd
 echo "Starting vsftpd..."
-exec /usr/sbin/vsftpd
+#exec /usr/sbin/vsftpd
+tail -f /dev/null

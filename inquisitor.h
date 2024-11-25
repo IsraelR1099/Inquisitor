@@ -52,7 +52,7 @@ typedef struct arphdr_s
 
 typedef struct	s_info
 {
-	const char	*dev;
+	char		*dev;
 	char		*ip_src;
 	char		*ip_target;
 	char		*mac_src;
