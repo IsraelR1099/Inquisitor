@@ -6,7 +6,7 @@
 /*   By: irifarac <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/22 11:54:49 by irifarac          #+#    #+#             */
-/*   Updated: 2024/11/22 12:03:12 by irifarac         ###   ########.fr       */
+/*   Updated: 2024/11/26 20:27:54 by israel           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,7 +44,6 @@ void	get_gateway(char *gateway_ip)
 			if (dest == 0)
 			{
 				gw_addr.s_addr = gw;
-				printf("gateway is %s\n", inet_ntoa(gw_addr));
 				strncpy(gateway_ip, inet_ntoa(gw_addr), 16);
 				fclose(fp);
 				return ;
@@ -66,5 +65,39 @@ void	check_errors(int argc)
 	{
 		usage();
 		exit (1);
+	}
+}
+
+void	check_syntax(t_info *info)
+{
+	struct ether_arp	*arp;
+	char				buffer[42] = {0};
+	u_char				source_mac[MAC_ADDR_LEN] = {0};
+	u_char				dest_mac[MAC_ADDR_LEN] = {0};
+
+	arp = (struct ether_arp *)(buffer + sizeof(struct ether_header));
+	if (inet_pton(AF_INET, info->ip_src, &arp->arp_spa) != 1)
+	{
+		fprintf(stderr, "Invalid source IP address\n");
+		exit(1);
+	}
+	if (inet_pton(AF_INET, info->ip_target, &arp->arp_tpa) != 1)
+	{
+		fprintf(stderr, "Invalid destination IP address\n");
+		exit(1);
+	}
+	if (sscanf(info->mac_src, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+		&source_mac[0], &source_mac[1], &source_mac[2],
+		&source_mac[3], &source_mac[4], &source_mac[5]) != 6)
+	{
+		fprintf(stderr, "Invalid source MAC address\n");
+		exit(1);
+	}
+	if (sscanf(info->mac_target, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+		&dest_mac[0], &dest_mac[1], &dest_mac[2],
+		&dest_mac[3], &dest_mac[4], &dest_mac[5]) != 6)
+	{
+		fprintf(stderr, "Invalid destination MAC address\n");
+		exit(1);
 	}
 }

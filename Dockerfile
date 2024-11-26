@@ -26,7 +26,7 @@ RUN useradd -m -s /bin/bash arp-user && \
 
 COPY script.sh /home/arp-user
 COPY arp.c utils.c signals.c set_headers.c sniffer_ftp.c Makefile /home/arp-user
-COPY inquisitor.h /home/arp-user
+COPY inquisitor.h forward_packet.c /home/arp-user
 
 COPY [ "/src/vsftpd.conf", "/etc" ]
 COPY [ "/src/docker_entrypoint.sh", "/" ]

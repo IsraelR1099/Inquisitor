@@ -6,7 +6,7 @@
 /*   By: irifarac <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/22 11:57:46 by irifarac          #+#    #+#             */
-/*   Updated: 2024/11/25 21:28:15 by israel           ###   ########.fr       */
+/*   Updated: 2024/11/26 20:27:33 by israel           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -45,7 +45,7 @@ static char	*get_default_interface(void)
 
 static void set_arp_spoof(t_info info)
 {
-	char				buffer[42];
+	char				buffer[42] = {0};
 	struct ether_header	*eth;
 	struct ether_arp	*arp;
 	struct sockaddr_ll	device;
@@ -89,7 +89,6 @@ static void set_arp_spoof(t_info info)
 			break ;
 		}
 		spoof_gateway(eth, arp, source_mac, info.ip_target);
-		printf("Gateway is spoofed\n");
 		if (stop)
 			break ;
 		if (sendto(sock, buffer, 42, 0, (struct sockaddr *)&device, sizeof(device)) < 0)
@@ -141,6 +140,7 @@ int	main(int argc, char **argv)
 	info.mac_src = argv[optind + 1];
 	info.ip_target = argv[optind + 2];
 	info.mac_target = argv[optind + 3];
+	check_syntax(&info);
 	signal(SIGINT, sigint_handler);
 	signal(SIGTERM, sigint_handler);
 	if (info.dev == NULL)
@@ -154,10 +154,9 @@ int	main(int argc, char **argv)
 		perror("Failed to create sniffer thread");
 		exit(1);
 	}
-	printf("dev is %s\n", info.dev);
 	set_arp_spoof(info);
 	pthread_join(sniffer_thread, NULL);
 	free(info.dev);
-	printf("Finished ARP attack");
+	printf(TC_RED "Finished ARP attack\n" TC_NRM);
 	return (0);
 }

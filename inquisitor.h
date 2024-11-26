@@ -30,6 +30,12 @@
 # define IP4LEN 4
 # define PKTLEN sizeof(struct ether_header) + sizeof(struct ether_arp)
 
+# define TC_NRM  "\x1B[0m"
+# define TC_RED  "\x1B[31m"
+# define TC_GRN  "\x1B[32m"
+# define TC_YEL  "\x1B[33m"
+# define TC_BLU  "\x1B[34m"
+
 //int		linkhdrlen;
 //int		packets;
 extern bool						verbose;
@@ -59,12 +65,22 @@ typedef struct	s_info
 	char		*mac_target;
 	char		*gateway_ip;
 	pcap_t		*handle;
-}				t_info;
+}	t_info;
+
+typedef struct s_pseudo_hdr
+{
+	u_int32_t	src;
+	u_int32_t	dst;
+	u_int8_t	zero;
+	u_int8_t	protocol;
+	u_int16_t	len;
+}	t_pseudo_hdr;
 
 // Utils
 void	usage(void);
 void	get_gateway(char *gateway_ip);
 void	check_errors(int argc);
+void	check_syntax(t_info *info);
 
 // Signals
 void	sigint_handler(int signum);
@@ -74,4 +90,6 @@ void	set_hdrs(struct ether_header *eth, struct ether_arp *arp, u_char *source_ma
 void	spoof_gateway(struct ether_header *eth, struct ether_arp *arp, u_char *source_mac, char *ip_target);
 void	*sniff_ftp(void *arg);
 
+// Forwarding packets
+void	forward_packet(t_info *info, const u_char *packet, int len);
 #endif
