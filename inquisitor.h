@@ -36,8 +36,6 @@
 # define TC_YEL  "\x1B[33m"
 # define TC_BLU  "\x1B[34m"
 
-//int		linkhdrlen;
-//int		packets;
 extern bool						verbose;
 extern int						sock;
 extern volatile sig_atomic_t	stop;
@@ -63,7 +61,8 @@ typedef struct	s_info
 	char		*ip_target;
 	char		*mac_src;
 	char		*mac_target;
-	char		*gateway_ip;
+	char		gateway_ip[16];
+	char		gateway_mac[18];
 	pcap_t		*handle;
 }	t_info;
 
@@ -81,6 +80,8 @@ void	usage(void);
 void	get_gateway(char *gateway_ip);
 void	check_errors(int argc);
 void	check_syntax(t_info *info);
+bool	is_duplicate(const u_char *payload, int len);
+int		get_gateway_mac(char *target_ip, char *mac);
 
 // Signals
 void	sigint_handler(int signum);

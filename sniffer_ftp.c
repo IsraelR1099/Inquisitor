@@ -35,7 +35,6 @@ static void	check_ftp_command(const u_char *payload, int len)
 		command = strstr(payload_copy, commands[i]);
 		if (command)
 		{
-			//printf(TC_RED "FTP Command detected: %s\n" TC_NRM, commands[i]);
 			arg_start = command + strlen(commands[i] + 1);
 			arg_end = strchr(arg_start, '\r');
 			if (arg_start && arg_end)
@@ -43,8 +42,6 @@ static void	check_ftp_command(const u_char *payload, int len)
 				*arg_end = '\0';
 				printf(TC_GRN "Filename: %s\n" TC_NRM, arg_start);
 			}
-			else
-				printf("No argument found\n");
 		}
 	}
 	free(payload_copy);
@@ -59,11 +56,15 @@ static void	process_packet(t_info *info, const u_char *packet, int len)
 	int				payload_len;
 	struct tcphdr	*tcp;
 	const u_char	*payload;
+	static uint32_t	last_seq = 0;
 
 	ip = (struct iphdr *)(packet + sizeof(struct ethhdr));
 	if (ip->protocol == IPPROTO_TCP)
 	{
 		tcp = (struct tcphdr *)(packet + sizeof(struct ethhdr) + (ip->ihl * 4));
+		if (ntohl(tcp->seq) == last_seq)
+			return ;
+		last_seq = ntohl(tcp->seq);
 		ip_hdr_len = ip->ihl * 4;
 		tcp_hdr_len = tcp->doff * 4;
 		payload_offset = sizeof(struct ethhdr) + ip_hdr_len + tcp_hdr_len;
@@ -93,6 +94,9 @@ static void	process_packet_callback(u_char *args, const struct pcap_pkthdr *head
 
 	info = (t_info *)args;
 	eth = (struct ethhdr *)packet;
+	ip = (struct iphdr *)(packet + sizeof(struct ethhdr));
+	if (ip->protocol != IPPROTO_TCP)
+		return ;
 	if (verbose)
 	{
 			printf("Ethernet: Source MAC: %02x:%02x:%02x:%02x:%02x:%02x | Destination MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -101,7 +105,6 @@ static void	process_packet_callback(u_char *args, const struct pcap_pkthdr *head
 					eth->h_dest[0], eth->h_dest[1], eth->h_dest[2],
 					eth->h_dest[3], eth->h_dest[4], eth->h_dest[5]);
 	}
-	ip = (struct iphdr *)(packet + sizeof(struct ethhdr));
 	if (verbose)
 	{
 			printf("IP: Source: %s | Destination: %s | Protocol: %d\n",
@@ -125,8 +128,6 @@ static void	process_packet_callback(u_char *args, const struct pcap_pkthdr *head
 		else if (ntohs(tcp->source) == 20 || ntohs(tcp->dest) == 20)
 			printf("FTP Data transfer detected\n");
 	}
-	else
-		printf("Non-TCP packet captured\n");
 	count++;
 	process_packet(info, packet, header->len);
 }

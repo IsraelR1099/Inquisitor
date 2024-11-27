@@ -6,7 +6,7 @@
 /*   By: irifarac <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/22 11:57:46 by irifarac          #+#    #+#             */
-/*   Updated: 2024/11/26 20:27:33 by israel           ###   ########.fr       */
+/*   Updated: 2024/11/27 23:22:00 by israel           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -140,15 +140,22 @@ int	main(int argc, char **argv)
 	info.mac_src = argv[optind + 1];
 	info.ip_target = argv[optind + 2];
 	info.mac_target = argv[optind + 3];
-	check_syntax(&info);
-	signal(SIGINT, sigint_handler);
-	signal(SIGTERM, sigint_handler);
 	if (info.dev == NULL)
 	{
 			info.dev = get_default_interface();
 		if (info.dev == NULL)
 			return (1);
 	}
+	bzero(info.gateway_ip, 16);
+	bzero(info.gateway_mac, 18);
+	get_gateway(info.gateway_ip);
+	printf("Gateway IP: %s\n", info.gateway_ip);
+	get_gateway_mac(info.gateway_ip, info.gateway_mac);
+	printf("Gateway MAC: %s\n", info.gateway_mac);
+	check_syntax(&info);
+	exit(0);
+	signal(SIGINT, sigint_handler);
+	signal(SIGTERM, sigint_handler);
 	if (pthread_create(&sniffer_thread, NULL, sniff_ftp, (void *)&info) != 0)
 	{
 		perror("Failed to create sniffer thread");

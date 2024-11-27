@@ -6,7 +6,7 @@
 /*   By: irifarac <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/22 11:54:49 by irifarac          #+#    #+#             */
-/*   Updated: 2024/11/26 20:27:54 by israel           ###   ########.fr       */
+/*   Updated: 2024/11/27 23:27:54 by israel           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -100,4 +100,47 @@ void	check_syntax(t_info *info)
 		fprintf(stderr, "Invalid destination MAC address\n");
 		exit(1);
 	}
+}
+
+int	get_gateway_mac(char *ip, char *mac)
+{
+	FILE	*arp_file;
+	char	buf[256] = {0};
+	char	ip_addr[32] = {0};
+	char	hw_type[16] = {0};
+	char	flags[16] = {0};
+	char	hw_addr[18] = {0};
+	char	mask[32] = {0};
+	char	device[32] = {0};
+
+	arp_file = fopen("/proc/net/arp", "r");
+	if (arp_file == NULL)
+	{
+		perror("fopen");
+		return (-1);
+	}
+	printf("ip: %s\n", ip);
+	fgets(buf, sizeof(buf), arp_file);
+	while (fgets(buf, sizeof(buf), arp_file))
+	{
+		if (sscanf(buf, "%31s %15s %15s %17s %31s %31s",
+			ip_addr, hw_type, flags, hw_addr, mask, device) == 6)
+		{
+			if (strcmp(ip_addr, ip) == 0)
+			{
+				strncpy(mac, hw_addr, 17);
+				fclose(arp_file);
+				return (0);
+			}
+		}
+		else
+		{
+			fprintf(stderr, "Could not parse ARP table\n");
+			fclose(arp_file);
+			return (-1);
+		}
+	}
+	fclose(arp_file);
+	fprintf(stderr, "Could not find MAC address for gateway\n");
+	return (-1);
 }
