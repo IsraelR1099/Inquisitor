@@ -3,7 +3,13 @@
 CC := gcc
 CFLAGS := -Wall -Wextra -Werror -pedantic -lpthread -g
 LDFLAGS := -lpcap -lpthread
-SRCS := arp.c utils.c signals.c set_headers.c sniffer_ftp.c forward_packet.c
+SRCS := arp.c \
+		utils.c \
+		signals.c \
+		set_headers.c \
+		sniffer_ftp.c \
+		forward_packet.c \
+		restore_arp.c
 OBJS := $(SRCS:.c=.o)
 DEPS := inquisitor.h
 TARGET := inquisitor

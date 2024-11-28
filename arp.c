@@ -6,7 +6,7 @@
 /*   By: irifarac <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/22 11:57:46 by irifarac          #+#    #+#             */
-/*   Updated: 2024/11/27 23:22:00 by israel           ###   ########.fr       */
+/*   Updated: 2024/11/28 12:30:30 by israel           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -153,7 +153,6 @@ int	main(int argc, char **argv)
 	get_gateway_mac(info.gateway_ip, info.gateway_mac);
 	printf("Gateway MAC: %s\n", info.gateway_mac);
 	check_syntax(&info);
-	exit(0);
 	signal(SIGINT, sigint_handler);
 	signal(SIGTERM, sigint_handler);
 	if (pthread_create(&sniffer_thread, NULL, sniff_ftp, (void *)&info) != 0)
@@ -163,6 +162,7 @@ int	main(int argc, char **argv)
 	}
 	set_arp_spoof(info);
 	pthread_join(sniffer_thread, NULL);
+	restore_arp(&info);
 	free(info.dev);
 	printf(TC_RED "Finished ARP attack\n" TC_NRM);
 	return (0);

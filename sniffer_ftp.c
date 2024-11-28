@@ -56,15 +56,11 @@ static void	process_packet(t_info *info, const u_char *packet, int len)
 	int				payload_len;
 	struct tcphdr	*tcp;
 	const u_char	*payload;
-	static uint32_t	last_seq = 0;
 
 	ip = (struct iphdr *)(packet + sizeof(struct ethhdr));
 	if (ip->protocol == IPPROTO_TCP)
 	{
 		tcp = (struct tcphdr *)(packet + sizeof(struct ethhdr) + (ip->ihl * 4));
-		if (ntohl(tcp->seq) == last_seq)
-			return ;
-		last_seq = ntohl(tcp->seq);
 		ip_hdr_len = ip->ihl * 4;
 		tcp_hdr_len = tcp->doff * 4;
 		payload_offset = sizeof(struct ethhdr) + ip_hdr_len + tcp_hdr_len;

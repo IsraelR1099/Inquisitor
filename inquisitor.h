@@ -93,4 +93,7 @@ void	*sniff_ftp(void *arg);
 
 // Forwarding packets
 void	forward_packet(t_info *info, const u_char *packet, int len);
+
+// Restore ARP cache
+void	restore_arp(t_info *info);
 #endif
