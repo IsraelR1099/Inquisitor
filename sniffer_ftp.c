@@ -56,6 +56,7 @@ static void	process_packet(t_info *info, const u_char *packet, int len)
 	int				payload_len;
 	struct tcphdr	*tcp;
 	const u_char	*payload;
+	static uint32_t	seq = 0;
 
 	ip = (struct iphdr *)(packet + sizeof(struct ethhdr));
 	if (ip->protocol == IPPROTO_TCP)
@@ -68,6 +69,11 @@ static void	process_packet(t_info *info, const u_char *packet, int len)
 		if (payload_len > 0)
 		{
 			payload = packet + payload_offset;
+			if (seq != ntohl(tcp->seq))
+			{
+				seq = ntohl(tcp->seq);
+				printf("Sequence number: %u\n", ntohl(tcp->seq));
+			}
 			if (verbose)
 			{
 				printf("Payload (%d bytes):\n", payload_len);
@@ -83,39 +89,17 @@ static void	process_packet(t_info *info, const u_char *packet, int len)
 static void	process_packet_callback(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 {
 	t_info			*info;
-	struct ethhdr	*eth;
 	struct iphdr	*ip;
 	struct tcphdr	*tcp;
 	static int	count = 0;
 
 	info = (t_info *)args;
-	eth = (struct ethhdr *)packet;
 	ip = (struct iphdr *)(packet + sizeof(struct ethhdr));
 	if (ip->protocol != IPPROTO_TCP)
 		return ;
-	if (verbose)
-	{
-			printf("Ethernet: Source MAC: %02x:%02x:%02x:%02x:%02x:%02x | Destination MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
-					eth->h_source[0], eth->h_source[1], eth->h_source[2],
-					eth->h_source[3], eth->h_source[4], eth->h_source[5],
-					eth->h_dest[0], eth->h_dest[1], eth->h_dest[2],
-					eth->h_dest[3], eth->h_dest[4], eth->h_dest[5]);
-	}
-	if (verbose)
-	{
-			printf("IP: Source: %s | Destination: %s | Protocol: %d\n",
-					inet_ntoa(*(struct in_addr *)&ip->saddr),
-					inet_ntoa(*(struct in_addr *)&ip->daddr),
-					ip->protocol);
-	}
 	if (ip->protocol == IPPROTO_TCP)
 	{
 		tcp = (struct tcphdr *)(packet + sizeof(struct ethhdr) + (ip->ihl * 4));
-		if (verbose)
-		{
-				printf("TCP: Source Port: %d | Destination Port: %d | Flags: 0x%x\n",
-						ntohs(tcp->source), ntohs(tcp->dest), tcp->th_flags);
-		}
 		if (ntohs(tcp->source) == 21 || ntohs(tcp->dest) == 21)
 		{
 			if (count < 2)
@@ -165,7 +149,7 @@ void	*sniff_ftp(void *arg)
 			break ;
 		}
 	}
-	printf(TC_RED"FTP sniffer stopped\n" TC_NRM);
+	printf(TC_RED "FTP sniffer stopped\n" TC_NRM);
 	pcap_freecode(&fp);
 	pcap_close(handle);
 	return (NULL);

@@ -6,7 +6,7 @@
 /*   By: irifarac <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/22 11:54:49 by irifarac          #+#    #+#             */
-/*   Updated: 2024/11/27 23:27:54 by israel           ###   ########.fr       */
+/*   Updated: 2024/11/28 20:18:24 by israel           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -98,6 +98,11 @@ void	check_syntax(t_info *info)
 		&dest_mac[3], &dest_mac[4], &dest_mac[5]) != 6)
 	{
 		fprintf(stderr, "Invalid destination MAC address\n");
+		exit(1);
+	}
+	if (info->gateway_mac[0] == 0)
+	{
+		fprintf(stderr, "Could not find gateway MAC address\n");
 		exit(1);
 	}
 }

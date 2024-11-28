@@ -24,6 +24,15 @@ $(TARGET): $(OBJS)
 %.o: %.c $(DEPS)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
+build:
+	docker build -t arp -f Dockerfile .
+
+run:
+	docker-compose -f docker-compose.yaml up
+
+down:
+	docker-compose -f docker-compose.yaml down
+
 clean:
 	rm -f $(OBJS) $(TARGET)
 
